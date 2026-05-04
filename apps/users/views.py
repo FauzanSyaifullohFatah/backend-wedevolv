@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model, authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.auth.hashers import make_password
 
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -47,7 +47,7 @@ class LoginView(APIView):
             httponly=True,
             secure=False,   # True kalau HTTPS
             samesite="Lax",
-            max_age=60 * 60,
+            max_age=15 * 60,
             path="/",
         )
 
@@ -94,7 +94,7 @@ class RefreshTokenView(APIView):
                 httponly=True,
                 secure=False,
                 samesite="Lax",
-                max_age=60 * 60,
+                max_age=15 * 60,
                 path="/",
             )
 
@@ -104,7 +104,7 @@ class RefreshTokenView(APIView):
                 httponly=True,
                 secure=False,
                 samesite="Lax",
-                max_age=24 * 60 * 60,
+                max_age=7 * 24 * 60 * 60,
                 path="/",
             )
 
@@ -316,3 +316,11 @@ class PasswordResetConfirmView(APIView):
             return Response({"message": "Password berhasil diubah. Silakan login."})
         except (User.DoesNotExist, ValueError):
             return Response({"error": "Token tidak valid atau sudah kadaluwarsa"}, status=400)
+
+class AllUsersView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request):
+        users = User.objects.all()
+        serializer = UsersSerializer(users, many=True)
+        return Response({"users": serializer.data})

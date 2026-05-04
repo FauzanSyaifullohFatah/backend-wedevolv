@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Users
 
 class UsersSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField()
+    image = serializers.ImageField(required=False, allow_null=True)
     fullname = serializers.SerializerMethodField()
     first_name = serializers.CharField(required=False, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_blank=True)
@@ -27,7 +27,7 @@ class UsersSerializer(serializers.ModelSerializer):
             "country",
             "is_public_portfolio",
             "is_verified",
-
+            "date_joined",
             "is_staff",
             "is_superuser",
         ]
