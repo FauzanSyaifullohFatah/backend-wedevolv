@@ -1,4 +1,6 @@
 import uuid
+
+from django.conf import settings
 from django.core.mail import send_mail
 from django.shortcuts import redirect
 from django.contrib.auth import get_user_model, authenticate
@@ -45,8 +47,8 @@ class LoginView(APIView):
             key="access_token",
             value=access_token,
             httponly=True,
-            secure=False,   # True kalau HTTPS
-            samesite="Lax",
+            secure=settings.COOKIE_SECURE,
+            samesite = settings.COOKIE_SAMESITE,
             max_age=15 * 60,
             path="/",
         )
@@ -55,8 +57,8 @@ class LoginView(APIView):
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=False,
-            samesite="Lax",
+            secure=settings.COOKIE_SECURE,
+            samesite=settings.COOKIE_SAMESITE,
             max_age=24 * 60 * 60,
             path="/",
         )
@@ -92,8 +94,8 @@ class RefreshTokenView(APIView):
                 key="access_token",
                 value=str(new_access),
                 httponly=True,
-                secure=False,
-                samesite="Lax",
+                secure=settings.COOKIE_SECURE,
+                samesite=settings.COOKIE_SAMESITE,
                 max_age=15 * 60,
                 path="/",
             )
@@ -102,8 +104,8 @@ class RefreshTokenView(APIView):
                 key="refresh_token",
                 value=str(new_refresh),
                 httponly=True,
-                secure=False,
-                samesite="Lax",
+                secure=settings.COOKIE_SECURE,
+                samesite=settings.COOKIE_SAMESITE,
                 max_age=7 * 24 * 60 * 60,
                 path="/",
             )
@@ -133,8 +135,17 @@ class LogoutView(APIView):
             status=status.HTTP_200_OK
         )
 
-        response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/")
+        response.delete_cookie(
+            "access_token",
+            path="/",
+            samesite=settings.COOKIE_SAMESITE,
+        )
+
+        response.delete_cookie(
+            "refresh_token",
+            path="/",
+            samesite=settings.COOKIE_SAMESITE,
+        )
 
         return response
 
@@ -165,7 +176,7 @@ class SendVerificationLinkView(APIView):
         user.verification_token = token
         user.save()
 
-        verify_url = f"http://localhost:8000/api/auth/verify-email/?token={token}"
+        verify_url = f"{settings.BACKEND_URL}/api/auth/verify-email/?token={token}"
 
         send_mail(
             subject="Verifikasi Email",
@@ -221,7 +232,7 @@ class VerifyEmailView(APIView):
             user.verification_token = None
             user.save()
 
-            return redirect("http://localhost:5173/")
+            return redirect(settings.FRONTEND_URL)
 
         except User.DoesNotExist:
             return Response({"error": "Token tidak valid"}, status=400)
@@ -277,7 +288,7 @@ class PasswordResetRequestView(APIView):
             user.verification_token = reset_token
             user.save()
 
-            reset_url = f"http://localhost:5173/confirm-password/{reset_token}"
+            reset_url = f"{settings.FRONTEND_URL}/confirm-password/{reset_token}"
 
             send_mail(
                 subject="Atur Ulang Kata Sandi - Wedevolv",
