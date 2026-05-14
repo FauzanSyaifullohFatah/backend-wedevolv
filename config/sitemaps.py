@@ -4,6 +4,7 @@ from apps.users.models import Users
 class HomeSitemap(Sitemap):
     priority = 1.0
     changefreq = "daily"
+    protocol = 'https'
 
     def items(self):
         return [""]
@@ -14,6 +15,7 @@ class HomeSitemap(Sitemap):
 class StaticViewSitemap(Sitemap):
     priority = 0.8
     changefreq = "weekly"
+    protocol = 'https'
 
     def items(self):
         return [
@@ -28,6 +30,7 @@ class StaticViewSitemap(Sitemap):
 class PortfolioSitemap(Sitemap):
     priority = 0.9
     changefreq = "daily"
+    protocol = 'https'
 
     def items(self):
         return Users.objects.filter(
