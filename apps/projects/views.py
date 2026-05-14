@@ -15,14 +15,26 @@ class ProjectView(APIView):
     def get(self, request):
         projects = Projects.objects.filter(user=request.user).order_by("-created_at")
         serializer = ProjectsSerializer(projects, many=True)
-        return Response(serializer.data)
+        return Response({
+            "status": "success",
+            "message": "Projects retrieved successfully",
+            "payload": serializer.data,
+        }, status=status.HTTP_200_OK)
 
     def post(self, request):
         serializer = ProjectsSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "status": "success",
+                "message": "Project created",
+                "payload": serializer.data,
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            "status": "error",
+            "message": "Failed to create project",
+            "errors": serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 class ProjectDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -36,21 +48,27 @@ class ProjectDetailView(APIView):
     def get(self, request, pk):
         project = self.get_object(pk, request.user)
         if not project:
-            return Response(
-                {"detail": "Project tidak ditemukan"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({
+                "status": "error",
+                "message": "Project not found",
+                "errors": None,
+            }, status.HTTP_404_NOT_FOUND)
 
         serializer = ProjectsSerializer(project)
-        return Response(serializer.data)
+        return Response({
+            "status": "success",
+            "message": "Project retrieved successfully",
+            "payload": serializer.data,
+        }, status=status.HTTP_200_OK)
 
     def patch(self, request, pk):
         project = self.get_object(pk, request.user)
         if not project:
-            return Response(
-                {"detail": "Project tidak ditemukan"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({
+                "status": "error",
+                "message": "Project not found",
+                "errors": None,
+            }, status=status.HTTP_404_NOT_FOUND)
 
         serializer = ProjectsSerializer(
             project,
@@ -60,9 +78,17 @@ class ProjectDetailView(APIView):
 
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response({
+                "status": "success",
+                "message": "Project updated successfully",
+                "payload": serializer.data,
+            }, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            "status": "error",
+            "message": "Failed to update project",
+            "errors": serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk):
         return self.patch(request, pk)
@@ -70,13 +96,15 @@ class ProjectDetailView(APIView):
     def delete(self, request, pk):
         project = self.get_object(pk, request.user)
         if not project:
-            return Response(
-                {"detail": "Project tidak ditemukan"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({
+                "status": "error",
+                "message": "Project not found",
+                "errors": None,
+            }, status=status.HTTP_404_NOT_FOUND)
 
         project.delete()
-        return Response(
-            {"detail": "Project berhasil dihapus"},
-            status=status.HTTP_204_NO_CONTENT
-        )
+        return Response({
+            "status": "success",
+            "message": "Project delete",
+            "payload": None,
+        }, status=status.HTTP_204_NO_CONTENT)

@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.shortcuts import redirect
 from django.contrib.auth import get_user_model, authenticate
+from django.template.loader import render_to_string
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -21,7 +22,6 @@ from apps.certificates.serializers import CertificatesSerializer
 User = get_user_model()
 
 class LoginView(APIView):
-
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
@@ -30,8 +30,11 @@ class LoginView(APIView):
 
         if user is None:
             return Response(
-                {"error": "Invalid username or password"},
-                status=status.HTTP_401_UNAUTHORIZED,
+                {
+                    "status": "error",
+                    "message": "invalid_credentials",
+                    "errors": None,
+                }, status=status.HTTP_401_UNAUTHORIZED,
             )
 
         refresh = RefreshToken.for_user(user)
@@ -39,8 +42,11 @@ class LoginView(APIView):
         refresh_token = str(refresh)
 
         response = Response(
-            {"message": "Login successful!"},
-            status=status.HTTP_200_OK
+            {
+                "status": "success",
+                "message": "Login success",
+                "payload": None
+            }, status=status.HTTP_200_OK
         )
 
         response.set_cookie(
@@ -66,14 +72,16 @@ class LoginView(APIView):
         return response
 
 class RefreshTokenView(APIView):
-
     def post(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
 
         if refresh_token is None:
             return Response(
-                {"error": "No refresh token"},
-                status=status.HTTP_401_UNAUTHORIZED
+                {
+                    "status": "error",
+                    "message": "Refresh failed",
+                    "errors": "No refresh token"
+                }, status=status.HTTP_401_UNAUTHORIZED
             )
 
         try:
@@ -86,8 +94,11 @@ class RefreshTokenView(APIView):
             new_access = new_refresh.access_token
 
             response = Response(
-                {"message": "Token refreshed"},
-                status=status.HTTP_200_OK
+                {
+                    "status": "success",
+                    "message": "Token refreshed",
+                    "payload": None,
+                }, status=status.HTTP_200_OK
             )
 
             response.set_cookie(
@@ -114,12 +125,14 @@ class RefreshTokenView(APIView):
 
         except TokenError:
             return Response(
-                {"error": "Invalid or expired refresh token"},
-                status=status.HTTP_401_UNAUTHORIZED
+                {
+                    "status": "error",
+                    "message": "Refresh failed",
+                    "error": "Invalid or expired refresh token"
+                }, status=status.HTTP_401_UNAUTHORIZED
             )
 
 class LogoutView(APIView):
-
     def post(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
 
@@ -131,8 +144,11 @@ class LogoutView(APIView):
                 pass
 
         response = Response(
-            {"message": "Logout successful"},
-            status=status.HTTP_200_OK
+            {
+                "status": "success",
+                "message": "Logout successful",
+                "payload": None,
+            }, status=status.HTTP_200_OK
         )
 
         response.delete_cookie(
@@ -150,7 +166,6 @@ class LogoutView(APIView):
         return response
 
 class RegisterView(APIView):
-
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
 
@@ -170,61 +185,67 @@ class SendVerificationLinkView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
+        try:
+            user = request.user
 
-        token = str(uuid.uuid4())
-        user.verification_token = token
-        user.save()
+            token = str(uuid.uuid4())
+            user.verification_token = token
+            user.save()
 
-        verify_url = f"{settings.BACKEND_URL}/api/auth/verify-email/?token={token}"
+            lang = request.data.get("language")
+            verify_url = f"{settings.BACKEND_URL}/api/auth/verify-email/?token={token}"
+            subject = (
+                "Verifikasi Email - Wedevolv"
+                if lang == "id"
+                else "Email Verification - Wedevolv"
+            )
+            message = (
+                f"Klik link berikut untuk verifikasi email: {verify_url}"
+                if lang == "id"
+                else f"Click the following link to verify your email: {verify_url}")
 
-        send_mail(
-            subject="Verifikasi Email",
-            message="Silakan buka email ini di browser (HTML support required)",
-            from_email="wedevolv@gmail.com",
-            recipient_list=[user.email],
-            fail_silently=False,
-            html_message=f"""
-                <div style="font-family: Arial, sans-serif; padding: 24px; background:#f9fafb;">
-                    <div style="max-width:500px;margin:auto;background:white;padding:24px;border-radius:10px;">
+            html_content = render_to_string(
+                "emails/verification_email.html",
+                {
+                    "username": user.username,
+                    "verify_url": verify_url,
+                    "lang": lang,
+                 },
+            )
 
-                        <h2 style="color:#4F46E5;">Verifikasi Email Kamu</h2>
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[user.email],
+                html_message=html_content,
+                fail_silently=False,
+            )
 
-                        <p>Halo <b>{user.username}</b>,</p>
-
-                        <p>Klik tombol di bawah untuk verifikasi akun kamu:</p>
-
-                        <a href="{verify_url}"
-                           style="
-                                display:inline-block;
-                                padding:12px 20px;
-                                background:#4F46E5;
-                                color:white;
-                                text-decoration:none;
-                                border-radius:8px;
-                                margin-top:10px;
-                                font-weight:bold;
-                           ">
-                            Verifikasi Email
-                        </a>
-
-                        <p style="margin-top:20px;font-size:12px;color:gray;">
-                            Jika kamu tidak merasa membuat akun, abaikan email ini.
-                        </p>
-                    </div>
-                </div>
-            """,
-        )
-
-        return Response({"message": "Berhasil"})
+            return Response(
+                {
+                    "status": "success",
+                    "message": "email_verification_success",
+                    "payload:": None,
+                }, status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response({
+                "status": "error",
+                "message": "email_verification_not_sent",
+                "errors": str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class VerifyEmailView(APIView):
-
     def get(self, request):
         token = request.GET.get("token")
 
         if not token:
-            return Response({"error": "Token tidak ada"}, status=400)
+            return Response({
+                "status": "error",
+                "message": "Token not found",
+                "errors": None,
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = User.objects.get(verification_token=token)
@@ -235,14 +256,22 @@ class VerifyEmailView(APIView):
             return redirect(settings.FRONTEND_URL)
 
         except User.DoesNotExist:
-            return Response({"error": "Token tidak valid"}, status=400)
+            return Response({
+                "status": "error",
+                "message": "Token not valid",
+                "errors": None,
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         serializer = UsersSerializer(request.user)
-        return Response(serializer.data)
+        return Response({
+            "status": "success",
+            "message": "User authenticated",
+            "payload": serializer.data,
+        }, status=status.HTTP_200_OK)
 
     def put(self, request):
         serializer = UsersSerializer(
@@ -253,33 +282,49 @@ class ProfileView(APIView):
 
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response({
+                "status": "success",
+                "message": "profile_updated",
+                "payload": serializer.data,
+            }, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=400)
+        return Response({
+            "status": "error",
+            "message": "Validation failed",
+            "errors": serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 class PublicPortfolioView(APIView):
-
     def get(self, request, username):
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
             return Response(
-                {"message": "User tidak ditemukan"},
+                {
+                    "status": "error",
+                    "message": "User not found",
+                    "errors": "Username does not match",
+                },
                 status=status.HTTP_404_NOT_FOUND
             )
 
         projects = user.projects.all().order_by("-created_at")
         certificates = user.certificates.all().order_by("-created_at")
-
-        return Response({
-            "user": UsersSerializer(user).data,
-            "projects": ProjectsSerializer(projects, many=True).data,
-            "certificates": CertificatesSerializer(certificates, many=True).data,
-        })
+        return Response(
+            {
+                "status": "success",
+                "message": "Portfolio found",
+                "payload": {
+                    "user": UsersSerializer(user).data,
+                    "projects": ProjectsSerializer(projects, many=True).data,
+                    "certificates": CertificatesSerializer(certificates, many=True).data,
+                },
+        }, status=status.HTTP_200_OK)
 
 class PasswordResetRequestView(APIView):
     def post(self, request):
         email = request.data.get("email")
+        lang = request.data.get("lang")
 
         try:
             user = User.objects.get(email=email)
@@ -289,33 +334,59 @@ class PasswordResetRequestView(APIView):
             user.save()
 
             reset_url = f"{settings.FRONTEND_URL}/confirm-password/{reset_token}"
+            subject = (
+                "Atur Ulang Kata Sandi - Wedevolv"
+                if lang == "id"
+                else "Reset Your Password - Wedevolv"
+            )
+            message = (
+                f"Klik link berikut untuk reset password: {reset_url}"
+                if lang == "id"
+                else f"Click the following link to reset your password: {reset_url}"
+            )
+            html_content = render_to_string(
+                "emails/password_reset.html",
+                {
+                    "username": user.username,
+                    "reset_url": reset_url,
+                    "lang": lang,
+                }
+            )
 
             send_mail(
-                subject="Atur Ulang Kata Sandi - Wedevolv",
-                message=f"Klik link berikut untuk reset password: {reset_url}",
-                from_email="wedevolv@gmail.com",
+                subject=subject,
+                message=message,
+                from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[user.email],
-                html_message=f"""
-                    <div style="font-family: sans-serif; max-width: 500px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-                        <h2 style="color: #4F46E5;">Reset Kata Sandi</h2>
-                        <p>Halo <b>{user.username}</b>,</p>
-                        <p>Kami menerima permintaan reset password. Silakan klik tombol di bawah:</p>
-                        <a href="{reset_url}" style="display: inline-block; padding: 10px 20px; background: #4F46E5; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Atur Ulang Password</a>
-                        <p style="margin-top: 20px; font-size: 12px; color: #666;">Abaikan email ini jika Anda tidak merasa melakukan permintaan ini.</p>
-                    </div>
-                """
+                html_message=html_content,
+                fail_silently=False,
             )
-            return Response({"message": "Link reset password telah dikirim."})
-        except User.DoesNotExist:
-            return Response({"message": "Jika email terdaftar, link akan dikirim."})
+            return Response({
+                "status": "success",
+                "message": "email_reset_password_success",
+                "payload": None,
+            }, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({
+                "status": "error",
+                "message": "email_reset_password_failed",
+                "errors": None,
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PasswordResetConfirmView(APIView):
     def post(self, request):
         token = request.data.get("token")
         new_password = request.data.get("password")
 
-        if not token or not new_password:
-            return Response({"error": "Data tidak lengkap"}, status=400)
+        # if not token or not new_password:
+        #     return Response({"error": "Data tidak lengkap"}, status=400)
+
+        if not token:
+            return Response({
+                "status": "error",
+                "message": "Data tidak lengkap",
+                "errors": None,
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = User.objects.get(verification_token=token)
@@ -324,9 +395,17 @@ class PasswordResetConfirmView(APIView):
             user.verification_token = None
             user.save()
 
-            return Response({"message": "Password berhasil diubah. Silakan login."})
-        except (User.DoesNotExist, ValueError):
-            return Response({"error": "Token tidak valid atau sudah kadaluwarsa"}, status=400)
+            return Response({
+                "status": "success",
+                "message": "password_changed_success",
+                "payload": None,
+            }, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({
+                "status": "error",
+                "message": "password_changed_failed",
+                "errors": None,
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class AllUsersView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -334,4 +413,10 @@ class AllUsersView(APIView):
     def get(self, request):
         users = User.objects.all()
         serializer = UsersSerializer(users, many=True)
-        return Response({"users": serializer.data})
+        return Response(
+            {
+                "status": "success",
+                "message": "Users retrieved successfully",
+                "payload": serializer.data,
+            }, status=status.HTTP_200_OK
+        )

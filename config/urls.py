@@ -19,12 +19,33 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from django.contrib.sitemaps.views import sitemap
+
+from .sitemaps import (
+    HomeSitemap,
+    StaticViewSitemap,
+    PortfolioSitemap,
+)
+
+sitemaps = {
+    "home": HomeSitemap,
+    "static": StaticViewSitemap,
+    "portfolio": PortfolioSitemap,
+}
+
 urlpatterns = [
     path('admin/', admin.site.urls),
 
     path("api/auth/", include("apps.users.urls")),
     path("api/projects/", include("apps.projects.urls")),
     path("api/certificates/", include("apps.certificates.urls")),
+
+    path(
+        "sitemap.xml",
+        sitemap,
+        {"sitemaps": sitemaps},
+        name="django.contrib.sitemaps.views.sitemap",
+    ),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

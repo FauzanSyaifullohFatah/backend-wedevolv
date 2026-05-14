@@ -16,14 +16,26 @@ class CertificateView(APIView):
         certificates = Certificates.objects.filter(user=request.user).order_by("-created_at")
         serializer = CertificatesSerializer(certificates, many=True)
 
-        return  Response(serializer.data)
+        return  Response({
+            "status": "success",
+            "message": "Certificates retrieved successfully",
+            "payload": serializer.data,
+        }, status=status.HTTP_200_OK)
 
     def post(self, request):
         serializer = CertificatesSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "status": "success",
+                "message": "Certificate created",
+                "payload": serializer.data ,
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            "status": "error",
+            "message": "Failed to create certificate",
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 class CertificateDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -37,21 +49,27 @@ class CertificateDetailView(APIView):
     def get(self, request, pk):
         certificate = self.get_object(pk, request.user)
         if not certificate:
-            return Response(
-                {"detail": "Certificate tidak ditemukan"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({
+                "status": "error",
+                "message": "Certificate not found",
+                "errors": None,
+            }, status=status.HTTP_404_NOT_FOUND)
 
         serializer = CertificatesSerializer(certificate)
-        return Response(serializer.data)
+        return Response({
+            "status": "success",
+            "message": "Certificates retrieved successfully",
+            "payload": serializer.data,
+        }, status=status.HTTP_200_OK)
 
     def patch(self, request, pk):
         certificate = self.get_object(pk, request.user)
         if not certificate:
-            return Response(
-                {"detail": "Certificate tidak ditemukan"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({
+                "status": "error",
+                "message": "Certificate not found",
+                "errors": None,
+            }, status=status.HTTP_404_NOT_FOUND)
 
         serializer = CertificatesSerializer(
             certificate,
@@ -61,9 +79,17 @@ class CertificateDetailView(APIView):
 
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response({
+                "status": "success",
+                "message": "Certificate update successfully",
+                "payload": serializer.data,
+            }, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            "status": "error",
+            "message": "Failed to update certificate",
+            "errors": serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk):
         return self.patch(request, pk)
@@ -71,13 +97,15 @@ class CertificateDetailView(APIView):
     def delete(self, request, pk):
         certificate = self.get_object(pk, request.user)
         if not certificate:
-            return Response(
-                {"detail": "Certificate tidak ditemukan"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({
+                "status": "error",
+                "message": "Certificate not found",
+                "errors": None,
+            }, status=status.HTTP_404_NOT_FOUND)
 
         certificate.delete()
-        return Response(
-            {"detail": "Certificate berhasil dihapus"},
-            status=status.HTTP_204_NO_CONTENT
-        )
+        return Response({
+            "status": "success",
+            "message": "Certificate delete",
+            "payload": None,
+        }, status=status.HTTP_204_NO_CONTENT)

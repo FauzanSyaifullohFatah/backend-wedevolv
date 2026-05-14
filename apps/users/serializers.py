@@ -1,4 +1,4 @@
-from rest_framework import serializers
+from rest_framework import serializers, validators
 from .models import Users
 
 class UsersSerializer(serializers.ModelSerializer):
@@ -6,6 +6,17 @@ class UsersSerializer(serializers.ModelSerializer):
     fullname = serializers.SerializerMethodField()
     first_name = serializers.CharField(required=False, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_blank=True)
+    username = serializers.CharField(
+        validators=[
+            validators.UniqueValidator(
+                queryset=Users.objects.all(),
+                message='username_taken',
+            )
+        ],
+        error_messages={
+            'blank': 'username_required',
+        }
+    )
 
     class Meta:
         model = Users
@@ -31,11 +42,35 @@ class UsersSerializer(serializers.ModelSerializer):
             "is_staff",
             "is_superuser",
         ]
+        extra_kwargs = {
+            'email': {
+                'error_messages': {
+                    'invalid': 'email_invalid'
+                }
+            },
+            'github': {
+                'error_messages': {
+                    'invalid': 'url_invalid'
+                }
+            },
+            'linkedin': {
+                'error_messages': {
+                    'invalid': 'url_invalid'
+                }
+            },
+            'instagram': {
+                'error_messages': {
+                    'invalid': 'url_invalid'
+                }
+            },
+        }
 
-    def validate_username(self, value):
+    def validate_email(self, value):
         user = self.instance
-        if Users.objects.filter(username=value).exclude(id=user.id).exists():
-            raise serializers.ValidationError("Username sudah digunakan")
+
+        if Users.objects.filter(email=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError("email_taken")
+
         return value
 
     def get_image(self, obj):

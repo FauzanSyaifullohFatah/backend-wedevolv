@@ -1,0 +1,39 @@
+<div style="font-family: Arial, sans-serif; padding: 24px; background:#f9fafb;">
+    <div style="max-width:500px;margin:auto;background:white;padding:24px;border-radius:10px;">
+        <h2 style="color: blue;">
+            {% if lang == "id" %}
+                Verifikasi Email Kamu
+            {% else %}
+                Verify Your Email
+            {% endif %}
+        </h2>
+        <p>
+            {% if lang == "id" %}
+                Halo <b>{{ username }}</b>,
+            {% else %}
+                Hello <b>{{ username }}</b>,
+            {% endif %}
+        </p>
+        <p>
+            {% if lang == "id" %}
+                Klik tombol di bawah untuk verifikasi akun kamu:
+            {% else %}
+                Click the button below to verify your account:
+            {% endif %}
+        </p>
+        <a href="{{ verify_url }}" style="display:inline-block; padding:12px 20px; background: blue; color:white;text-decoration:none; border-radius:8px; margin-top:10px; font-weight:bold;">
+            {% if lang == "id" %}
+                Verifikasi Email
+            {% else %}
+                Verify Email
+            {% endif %}
+        </a>
+        <p style="margin-top:20px;font-size:12px;color:gray;">
+            {% if lang == "id" %}
+                Jika kamu tidak merasa membuat akun, abaikan email ini.
+            {% else %}
+                If you did not create an account, you can safely ignore this email.
+            {% endif %}
+        </p>
+  </div>
+</div>
