@@ -164,6 +164,13 @@ REST_FRAMEWORK = {
     ),
 }
 
+_env_react_path = os.getenv("REACT_INDEX_PATH")
+
+if _env_react_path.startswith("http"):
+    REACT_INDEX_PATH = _env_react_path
+else:
+    REACT_INDEX_PATH = BASE_DIR / _env_react_path
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

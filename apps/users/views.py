@@ -1,7 +1,11 @@
 import uuid
 
+import os
+import requests
+from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.core.mail import send_mail
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.contrib.auth import get_user_model, authenticate
 from django.template.loader import render_to_string
@@ -20,6 +24,105 @@ from apps.projects.serializers import ProjectsSerializer
 from apps.certificates.serializers import CertificatesSerializer
 
 User = get_user_model()
+
+def get_react_template():
+    target = settings.REACT_INDEX_PATH
+
+    if isinstance(target, str) and target.startswith("http"):
+        try:
+            response = requests.get(target, timeout=5)
+            if response.status_code == 200:
+                return response.text
+        except requests.RequestException:
+            pass
+    else:
+        target_path = os.fspath(target)
+        if os.path.exists(target_path):
+            with open(target_path, 'r', encoding='utf-8') as file:
+                return file.read()
+
+    return None
+
+def static_page_seo_view(request):
+    path = request.path.strip('/')
+
+    seo_data = {
+        '': {
+            'title': 'Wedevolv - Developer Portfolio Builder',
+            'description': 'Build your professional developer portfolio on Wedevolv. The easiest way to showcase your projects, skills, and work experience to the world.'
+        },
+        'login': {
+            'title': 'Login | Wedevolv',
+            'description': 'Log in to your Wedevolv account to manage your developer portfolio.'
+        },
+        'register': {
+            'title': 'Register | Wedevolv',
+            'description': 'Start your journey on Wedevolv. Build your digital portfolio, showcase your best projects, and let others see the skills you have.'
+        },
+        'about': {
+            'title': 'About Us | Wedevolv',
+            'description': 'Learn more about Wedevolv, the platform designed to help developers build and showcase professional portfolios easily.'
+        }
+    }
+
+    current_seo = seo_data.get(path, seo_data[''])
+    title = current_seo['title']
+    description = current_seo['description']
+
+    frontend_url = settings.FRONTEND_URL.rstrip('/')
+    image_url = f"{frontend_url}/og-image.png"
+
+    html_content = get_react_template()
+    if not html_content:
+        return HttpResponse("Template Frontend Not Found", status=500)
+
+    old_title = "<title>Wedevolv - Developer Portfolio Builder</title>"
+    new_seo_tags = f"""<title>{title}</title>
+    <meta name="description" content="{description}">
+    <meta property="og:title" content="{title}">
+    <meta property="og:description" content="{description}">
+    <meta property="og:image" content="{image_url}">
+    <meta property="og:url" content="{request.build_absolute_uri()}">
+    <meta property="og:type" content="website">"""
+
+    html_content = html_content.replace(old_title, new_seo_tags)
+
+    html_content = html_content.replace("{{ frontend_url }}", frontend_url)
+
+    return HttpResponse(html_content, content_type='text/html')
+
+def portfolio_seo_view(request, username):
+    user_obj = get_object_or_404(User, username=username)
+    user_data = UsersSerializer(user_obj).data
+
+    fullname = user_data.get('fullname')
+    description = user_data.get('bio')
+
+    raw_image = user_data.get('image')
+    clean_image_path = raw_image.strip('/')
+    backend_url = settings.BACKEND_URL.rstrip('/')
+    image_url = f"{backend_url}/{clean_image_path}"
+
+    title = f"{fullname} - Portfolio"
+    html_content = get_react_template()
+    if not html_content:
+        return HttpResponse("Template Frontend Not Found", status=500)
+
+    old_title = "<title>Wedevolv - Developer Portfolio Builder</title>"
+    new_seo_tags = f"""<title>{title}</title>
+    <meta name="description" content="{description}">
+    <meta property="og:title" content="{title}">
+    <meta property="og:description" content="{description}">
+    <meta property="og:image" content="{image_url}">
+    <meta property="og:url" content="{request.build_absolute_uri()}">
+    <meta property="og:type" content="profile">"""
+
+    html_content = html_content.replace(old_title, new_seo_tags)
+
+    frontend_url = settings.FRONTEND_URL.rstrip('/')
+    html_content = html_content.replace("{{ frontend_url }}", frontend_url)
+
+    return HttpResponse(html_content, content_type='text/html')
 
 class LoginView(APIView):
     def post(self, request):

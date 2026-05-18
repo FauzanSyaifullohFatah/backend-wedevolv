@@ -20,12 +20,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from django.contrib.sitemaps.views import sitemap
-
 from .sitemaps import (
     HomeSitemap,
     StaticViewSitemap,
     PortfolioSitemap,
 )
+
+from apps.users.views import portfolio_seo_view, static_page_seo_view
 
 sitemaps = {
     "home": HomeSitemap,
@@ -46,6 +47,13 @@ urlpatterns = [
         {"sitemaps": sitemaps},
         name="django.contrib.sitemaps.views.sitemap",
     ),
+
+    path('login/', static_page_seo_view, name='login_seo'),
+    path('register/', static_page_seo_view, name='register_seo'),
+    path('about/', static_page_seo_view, name='about_seo'),
+    path('', static_page_seo_view, name='home_seo'),
+
+    path('<str:username>/', portfolio_seo_view, name='portfolio_seo'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
