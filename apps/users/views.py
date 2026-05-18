@@ -70,6 +70,7 @@ def static_page_seo_view(request):
     description = current_seo['description']
 
     frontend_url = settings.FRONTEND_URL.rstrip('/')
+    full_frontend_url = f"{frontend_url}{request.path}"
     image_url = f"{frontend_url}/og-image.png"
 
     html_content = get_react_template()
@@ -82,7 +83,7 @@ def static_page_seo_view(request):
     <meta property="og:title" content="{title}">
     <meta property="og:description" content="{description}">
     <meta property="og:image" content="{image_url}">
-    <meta property="og:url" content="{request.build_absolute_uri()}">
+    <meta property="og:url" content="{full_frontend_url}">
     <meta property="og:type" content="website">"""
 
     html_content = html_content.replace(old_title, new_seo_tags)
@@ -101,6 +102,8 @@ def portfolio_seo_view(request, username):
     raw_image = user_data.get('image')
     clean_image_path = raw_image.strip('/')
     backend_url = settings.BACKEND_URL.rstrip('/')
+    frontend_url = settings.FRONTEND_URL.rstrip('/')
+    full_frontend_url = f"{frontend_url}/{username}/"
     image_url = f"{backend_url}/{clean_image_path}"
 
     title = f"{fullname} - Portfolio"
@@ -114,12 +117,11 @@ def portfolio_seo_view(request, username):
     <meta property="og:title" content="{title}">
     <meta property="og:description" content="{description}">
     <meta property="og:image" content="{image_url}">
-    <meta property="og:url" content="{request.build_absolute_uri()}">
+    <meta property="og:url" content="{full_frontend_url}">
     <meta property="og:type" content="profile">"""
 
     html_content = html_content.replace(old_title, new_seo_tags)
 
-    frontend_url = settings.FRONTEND_URL.rstrip('/')
     html_content = html_content.replace("{{ frontend_url }}", frontend_url)
 
     return HttpResponse(html_content, content_type='text/html')
